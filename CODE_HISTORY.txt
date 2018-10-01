@@ -1,0 +1,58 @@
+######################################
+Version history and bugfixes
+######################################
+
+The C++ code performing the generalized Louvain optimization is based on the 
+implementation of the Louvain method as available from 
+http://sites.google.com/site/findcommunities/ 
+(Authors: Jean-Loup Guillaume / Etienne Lefebvre)
+
+The Louvain code was adapted and extended by R. Lambiotte 
+(http://www.lambiotte.be) to allow for the optimization of the stability quality 
+function and was subsequently refined further by Antoine Delmotte. 
+
+The MATLAB frontend was initally added by Antoine Delmotte. 
+Later adjustments and additions, testing, and maintenance are due to 
+Antoine Delmotte and Michael Schaub.
+
+1.9.2012 - Version 1.0: 
+Release of the first public version of the stability MATLAB toolbox (apd, mts)
+28.9.2012 
+Removed unused small code segment in Normalised/community.cpp that could lead to 
+compilation errors in Windows (mts, apd)
+19.10.2012
+Added some header files that can be required for some Linux systems (mts, apd)
+
+=======
+25.6.2013 - Version 2.0
+New version of matlab interface including ability to treat directed graph (mts)
+
+29.12.2013
+-Added some header files that can be required for some Linux systems.
+-Added some header files that can be required for Mac Users (Thanks to Adrien Fallou (afallou)).
+
+[...]
+
+22.6.2015
+-bugfixes for check of isolated nodes
+
+=======
+10.11.2014 - Version 2.5
+New C++ backend interfacable through Matlab (mts). New C++ part co-developed 
+with Zenna Tavares (MIT).
+*resolves some numerical issues with large graphs
+*some added options for new variants of computing stability
+*greater efficiency on some parts in the code
+
+=======
+1.1.2016 -- Version 3.0
+Fully rewritten interface with more modular structure for easier extension (mts)
+* default name of function is now partition_stability to avoid confusion with older version.
+* eigendecomposition as option to compute matrix exponential
+* parallelisation possible over different markov times (new default)
+* faster variation of information computations
+* lots of small changes ...
+* new C++ backend is now the default, old version available in separate folder
+
+=======
+1. October 2018 -- release in new repository
