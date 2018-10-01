@@ -1,4 +1,12 @@
-
+% This demo implements some additional analysis of the Harari Highland tribe data, 
+% related to the one discussed in 
+% Michael T. Schaub, Jean-Charles Delvenne, Renaud Lambiotte, Mauricio Barahona
+% "Multiscale dynamical embeddings of complex networks" https://arxiv.org/abs/1804.03733
+%
+% Note that the network contains signed edges and as such a new type of quality function
+% is optimized. The generalized Louvain code can handle any kind of quality functions 
+% which are of a similar separable form (matrix minus low rank correction term) -- c.f. 
+% the above reference for further details.
 
 % load data and labels and assign name to store outputs
 load('./gama.mat');
