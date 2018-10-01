@@ -21,7 +21,7 @@ Generalized Louvain optimization (for graph partitioning problems)
 -----------------------------------------------------------------------------
 
 The code implements a generalized Louvain optimization algorithm which can be used to
-optimzed several objective functions, e.g., the ones discussed in the article:
+optimized several objective functions, e.g., the ones discussed in the article:
 
 Michael T. Schaub, Jean-Charles Delvenne, Renaud Lambiotte, Mauricio Barahona
 "Multiscale dynamical embeddings of complex networks"
@@ -37,8 +37,8 @@ Please see the README file within the respective folder for further details.
 
 ***If you make use of any part of this toolbox, please cite our work.***
 
-The C++ optimization toolbox (cliques) can be used indepdently or be called from Matlab.
-If you want to use the code indepdently, you may also want to make use of the FORTRAN 
+The C++ optimization toolbox (cliques) can be used independently or be called from Matlab.
+If you want to use the code independently, you may also want to make use of the FORTRAN 
 code implementing the computation of the matrix exponential function (see FORTRAN folder).
 
 For detailed instructions on how to compile the code in MATLAB see below.
@@ -101,7 +101,7 @@ a) Install Lemon Graph library -- a version is provided in the folder CPP/lemon-
         load demo;    % load data and then run stability
         [S, N, VI, C] = partition_stability(Graph,Time,'plot','v');
         % for a more advanced example see also the example analysis 
-        %of the Harari highland data in the demo folder
+        % of the Harari highland data in the demo folder
 
 NOTES:
 
