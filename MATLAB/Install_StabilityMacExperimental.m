@@ -1,4 +1,7 @@
 function [] = Install_StabilityMacExperimental()
+% THIS IS AN EXPERIMENTAL FILE -- MAC INSTALLATION SHOULD WORK WITH THE
+% STANDARD INSTALL SCRIPT.
+
 % Run this function from within the matlab folder to install stability
 curr_folder = pwd;
 
@@ -18,7 +21,7 @@ disp('Compiling files...');
 % !g++-4.6 -O3 -pthread -shared -Wl,--version-script,/usr/local/MATLAB/R2010b/extern/lib/glnxa64/mexFunction.map -Wl,--no-undefined -o  stability_louvain.mexa64  louvain_matlab_interface.o expokit.o -Wl,-rpath-link,/usr/local/MATLAB/R2010b/bin/glnxa64 -L/usr/local/MATLAB/R2010b/bin/glnxa64 -lmx -lmex -lmat -lm -lgfortran -llapack -lemon -lblas 
 % %-Wall 
 
-% compilation mac
+% compilation mac experimental (not using matlab)
 !/usr/local/bin/g++-5 -c -DMX_COMPAT_32   -DMATLAB_MEX_FILE  -I./  -I"/Applications/MATLAB_R2015a.app/extern/include" -I"/Applications/MATLAB_R2015a.app/simulink/include" -std=gnu++0x -fPIC -O2 -DNDEBUG matlab/louvain_matlab_interface.cpp -o louvain_matlab_interface.o
 !/usr/local/bin/g++-5 -L/usr/local/include/lemon -Wl,-twolevel_namespace -undefined error -arch x86_64 -mmacosx-version-min=10.9 -Wl,-syslibroot,/usr/local/include -Wl,-syslibroot,/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk -framework Cocoa -bundle  -Wl,-exported_symbols_list,"/Applications/MATLAB_R2015a.app/extern/lib/maci64/mexFunction.map" -O -Wl,-exported_symbols_list,"/Applications/MATLAB_R2015a.app/extern/lib/maci64/mexFunction.map" louvain_matlab_interface.o   -lemon   -L"/Applications/MATLAB_R2015a.app/bin/maci64" -lmx -lmex -lmat -o stability_louvain.mexmaci64
 

@@ -46,7 +46,7 @@ If you find a bug or have further comments, please send an email and if
 necessary the input file and the parameters that caused the error.
 
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-Authors   : M. Schaub
+Authors   : M. Schaub  
 Email     : mschaub[at]mit.edu
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -97,9 +97,11 @@ a) Install Lemon Graph library -- a version is provided in the folder CPP/lemon-
 
 8. Try this example to check that everything is working:
     
-        cd('demo');   % go into the demo directory (in the stability folder)
+        cd('MATLAB/demo');   % go into the demo directory 
         load demo;    % load data and then run stability
         [S, N, VI, C] = partition_stability(Graph,Time,'plot','v');
+        % for a more advanced example see also the example analysis 
+        %of the Harari highland data in the demo folder
 
 NOTES:
 

@@ -129,17 +129,12 @@ VI = zeros(1, length(Time));
 C = zeros(PARAMS.NbNodes, length(Time));
 
 % Parallelization Initialize if matlabpool is not yet running.
-if strcmp(version('-release'),'2015a')
-    if PARAMS.ComputeParallel && isempty(gcp)
-        parpool;
-        flag_matlabpool = true;
-    end
-else
-    if PARAMS.ComputeParallel && (matlabpool('size') == 0)
-        flag_matlabpool = true;
-        matlabpool
-    end
+
+if PARAMS.ComputeParallel && isempty(gcp)
+    flag_matlabpool = true;
+    parpool
 end
+
 if TextOutput
     mkdir(['Partitions_' prefix]);
 end
@@ -491,7 +486,7 @@ if options > 0
                 PARAMS.eig_decomp = true;
                 i = i+1;
             elseif strcmpi(varargin{i},'p')
-                if exist('matlabpool','file')
+                if exist('parpool','file')
                     PARAMS.ComputeParallel = true;
                 else
                     PARAMS.ComputeParallel = false;

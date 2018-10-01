@@ -12,13 +12,11 @@ disp('Moving build files to bin directory...');
 
 movefile('*.mex*',curr_folder);
 
-% cd(curr_folder);
-% 
-% disp('Adding bin directory to path...');
-% 
-% path(pwd,path);
-% 
-% savepath;
+% remove part below if you do not want the files ot be added to your path
+cd(curr_folder);
+disp('Adding bin directory to path...');
+path(genpath(pwd),path);
+savepath;
 
 disp('Done');
 
