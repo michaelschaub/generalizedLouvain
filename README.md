@@ -34,6 +34,8 @@ A legacy version of this code -- including the old C++ backend (no lemon library
 an improved Matlab interface is included within this repository for convenience.
 Please see the README file within the respective folder for further details.
 
+This project has received funding from the European Union’s Horizon 2020 research and innovation programme under the Marie Sklodowska-Curie grant agreement No 702410.
+
 
 ***If you make use of any part of this toolbox, please cite our work.***
 
