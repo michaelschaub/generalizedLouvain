@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include "compensated_sum.h"
 #include "graphhelpers.h"
 #include "linearised_internals_norm.h"
 #include "linearised_internals_comb.h"
@@ -17,29 +18,31 @@ struct find_linearised_normalised_stability {
     {
     }
 
-    template<typename G, typename P, typename W>
-    double operator () (G& graph, P& partition, W& weights)
+    template<typename P>
+    double operator () (const Graph& graph, P& partition)
     {
-        clq::LinearisedInternals internals(graph, weights, partition);
+        clq::LinearisedInternals internals(graph, partition);
         return (*this) (internals);
     }
 
     template<typename I>
     double operator () (I& internals)
     {
-        double q = 1.0 - markov_time;
+        // Compensated sum: the error does not increase with the number of terms.
+        CompensatedSum q;
+        q.add (1.0 - markov_time);
         int size = internals.comm_w_tot.size();
 
         for (int i = 0; i < size; i++) {
             if (internals.comm_w_tot[i] > 0) {
-                q += markov_time * double (internals.comm_w_in[i] / internals.two_m) -
-                     ( (double (internals.comm_w_tot[i]) / internals.two_m) *
-                       (double (internals.comm_w_tot[i]) / internals.two_m) );
+                q.add (markov_time * double (internals.comm_w_in[i] / internals.two_m) -
+                       ( (double (internals.comm_w_tot[i]) / internals.two_m) *
+                         (double (internals.comm_w_tot[i]) / internals.two_m) ) );
             }
 
         }
 
-        return q;
+        return q.value();
     }
 
     template<typename I>
@@ -96,11 +99,11 @@ struct linearised_normalised_stability_gain {
 };
 
 // Linearised combinatorial stability with partition given
-template<typename G, typename M, typename P>
+template<typename P>
 clq::LinearisedInternals gen_internals( find_linearised_normalised_stability X,
-                                  G& graph, M& weights, P& partition, P& partition_init )
+                                  const Graph& graph, P& partition, P& partition_init )
 {
-    LinearisedInternals internals( graph, weights, partition );
+    LinearisedInternals internals( graph, partition );
     return internals;
 }
 
@@ -119,35 +122,36 @@ struct find_linearised_combinatorial_stability {
     {
     }
 
-    template<typename G, typename P, typename W>
-    double operator () (G& graph, P& partition, W& weights, P& partition_init)
+    template<typename P>
+    double operator () (const Graph& graph, P& partition, P& partition_init)
     {
-        clq::LinearisedInternalsComb internals (graph, weights, partition,
-                                                partition_init);
+        clq::LinearisedInternalsComb internals (graph, partition, partition_init);
         return (*this) (internals);
     }
 
     template<typename I>
     double operator () (I& internals)
     {
-        double q = 1.0 - markov_time;
+        // Compensated sum: the error does not increase with the number of terms.
+        CompensatedSum q;
+        q.add (1.0 - markov_time);
         int size = internals.comm_tot_nodes.size();
         //				clq::output("time", markov_time, "size", size);
 
         for (int i = 0; i < size; i++) {
             //			clq::print_collection(internals.comm_tot_nodes);
             if (internals.comm_tot_nodes[i] > 0) {
-                q += markov_time * double (internals.comm_w_in[i]
-                                           / internals.two_m)
-                     - ( (double (internals.comm_tot_nodes[i])
-                          / internals.num_nodes_init)
-                         * (double (internals.comm_tot_nodes[i])
-                            / internals.num_nodes_init) );
+                q.add (markov_time * double (internals.comm_w_in[i]
+                                             / internals.two_m)
+                       - ( (double (internals.comm_tot_nodes[i])
+                            / internals.num_nodes_init)
+                           * (double (internals.comm_tot_nodes[i])
+                              / internals.num_nodes_init) ) );
             }
 
         }
 
-        return q;
+        return q.value();
     }
 };
 
@@ -184,11 +188,11 @@ struct linearised_combinatorial_stability_gain {
 };
 
 // Linearised combinatorial stability with partition given
-template<typename G, typename M, typename P>
+template<typename P>
 clq::LinearisedInternalsComb gen_internals( find_linearised_combinatorial_stability X,
-                                  G& graph, M& weights, P& partition, P& partition_init )
+                                  const Graph& graph, P& partition, P& partition_init )
 {
-    LinearisedInternalsComb internals( graph, weights, partition, partition_init );
+    LinearisedInternalsComb internals( graph, partition, partition_init );
     return internals;
 }
 }

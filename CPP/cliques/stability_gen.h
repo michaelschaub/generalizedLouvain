@@ -1,9 +1,7 @@
 #pragma once
 
 #include <vector>
-//#include "../lemon-lib/lemon/concepts/graph.h"
-//#include <lemon/smart_graph.h>
-//#include <time.h>
+#include "compensated_sum.h"
 #include "graphhelpers.h"
 #include "linearised_internals_generic.h"
 
@@ -29,7 +27,8 @@ struct find_linearised_generic_stability {
     {
         // first part equals 1-t
         double q = 1 - markov_time;
-        double q2 = 0;
+        // Compensated sum: the error does not increase with the number of terms.
+        CompensatedSum q2;
 
         const unsigned int num_null_model_vec = internals.num_null_model_vectors;
         const unsigned int num_nodes = internals.num_nodes;
@@ -40,14 +39,14 @@ struct find_linearised_generic_stability {
         // { ... } else { ... }` dead branch in the previous implementation
         // was bug-compatible with always evaluating the inner sum.)
         for (unsigned int i = 0; i < num_nodes; i++) {
-            q2 += markov_time * internals.comm_w_in[i];
+            q2.add (markov_time * internals.comm_w_in[i]);
             for (unsigned int j = 0; j < num_null_model_vec; j += 2) {
-                q2 -= internals.comm_loss_vectors[j][i]
-                      * internals.comm_loss_vectors[j + 1][i];
+                q2.add (- internals.comm_loss_vectors[j][i]
+                        * internals.comm_loss_vectors[j + 1][i]);
             }
         }
 
-        return q + q2;
+        return q + q2.value();
     }
 
 };

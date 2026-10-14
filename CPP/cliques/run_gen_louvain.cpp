@@ -3,7 +3,6 @@
 #include "vector_partition.h"
 #include "io.h"
 
-#include <lemon/smart_graph.h>
 #include <ctime>
 #include <random>
 #include <vector>
@@ -25,14 +24,13 @@ int main(int argc, char *argv []) {
     }
     clq::output("Markov time: ", current_markov_time);
 
-    // initialise graph and edge map
-    lemon::SmartGraph input_graph;
-    lemon::SmartGraph::EdgeMap<double> input_graph_weights(input_graph);
+    // initialise graph
+    clq::Graph input_graph;
 
     
-    clq::read_edgelist_weighted_graph(argv[1], input_graph, input_graph_weights);
+    clq::read_edgelist_weighted_graph(argv[1], input_graph);
     
-    int num_nodes = lemon::countNodes(input_graph);
+    int num_nodes = input_graph.num_nodes();
     std::vector<std::vector<double>> null_model = clq::read_null_model(argv[2],num_nodes);
     clq::print_2d_vector(null_model);
 
@@ -40,7 +38,7 @@ int main(int argc, char *argv []) {
     // define type for vector partition initialise start partition, qualitiy functions etc.
     typedef clq::VectorPartition partition;
 
-    partition start_partition(lemon::countNodes(input_graph));
+    partition start_partition(num_nodes);
     start_partition.initialise_as_singletons();
     clq::print_partition_list(start_partition);
 
@@ -53,7 +51,7 @@ int main(int argc, char *argv []) {
     // call Louvain
     clq::output("Start Louvain");
     double stability = clq::find_optimal_partition_louvain_gen<partition>(
-                           input_graph, input_graph_weights, null_model, quality, quality_gain,
+                           input_graph, null_model, quality, quality_gain,
                            start_partition, optimal_partitions, 1e-18, rng);
     
     // store output partitions in file

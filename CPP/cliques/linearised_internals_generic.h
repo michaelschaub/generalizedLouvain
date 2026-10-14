@@ -36,15 +36,14 @@ struct LinearisedInternalsGeneric {
     //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
     // simple constructor, no partition given
     //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
-    template<typename G, typename M>
-        LinearisedInternalsGeneric (G& graph, M& weights, vec_of_vec null_model_input) :
-        num_nodes (lemon::countNodes (graph) ),
+    LinearisedInternalsGeneric (const Graph& graph, vec_of_vec null_model_input) :
+        num_nodes (graph.num_nodes() ),
         num_null_model_vectors (null_model_input.size() ),
         null_model_vectors (null_model_input),
         comm_loss_vectors (null_model_input),
         comm_w_in ( num_nodes, 0),
         node_weight_to_communities (num_nodes, 0), neighbouring_communities_list(),
-        nbr (build_neighbour_cache (graph, weights))
+        nbr (build_neighbour_cache (graph))
     {
         if (num_null_model_vectors % 2 != 0 ) {
             clq::output ("Null model vectors must be provided as pairs!");
@@ -59,18 +58,16 @@ struct LinearisedInternalsGeneric {
     //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
     // full constructor with reference to partition
     //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
-    template<typename G, typename M, typename P>
-        LinearisedInternalsGeneric (G& graph, M& weights, P& partition, vec_of_vec null_model_input) :
-        num_nodes (lemon::countNodes (graph) ),
+    template<typename P>
+        LinearisedInternalsGeneric (const Graph& graph, P& partition, vec_of_vec null_model_input) :
+        num_nodes (graph.num_nodes() ),
         num_null_model_vectors (null_model_input.size() ),
         null_model_vectors (null_model_input),
         comm_loss_vectors (num_null_model_vectors, std::vector<double> (num_nodes, 0) ),
         comm_w_in (num_nodes, 0),
         node_weight_to_communities (num_nodes, 0), neighbouring_communities_list(),
-        nbr (build_neighbour_cache (graph, weights))
+        nbr (build_neighbour_cache (graph))
     {
-        typedef typename G::EdgeIt EdgeIt;
-
         if (num_null_model_vectors % 2 != 0 ) {
             clq::output ("Null model vectors must be provided as pairs!");
             exit (EXIT_FAILURE);
@@ -78,16 +75,10 @@ struct LinearisedInternalsGeneric {
 
         // find internal statistics based on graph, weights and partitions
         // consider all edges
-        for (EdgeIt edge (graph); edge != lemon::INVALID; ++edge) {
-            int node_u_id = graph.id (graph.u (edge) );
-            int node_v_id = graph.id (graph.v (edge) );
-
+        for_each_edge (graph, [&] (int node_u_id, int node_v_id, double weight) {
             // this is to distinguish within community weight with total weight
             int comm_of_node_u = partition.find_set (node_u_id);
             int comm_of_node_v = partition.find_set (node_v_id);
-
-            // weight of edge
-            double weight = weights[edge];
 
             // if selfloop, only half of the weight has to be considered (multiplication by two afterwards)
             if (node_u_id == node_v_id) {
@@ -98,8 +89,7 @@ struct LinearisedInternalsGeneric {
                 // in case the weight stems from within the community add to internal weights
                 comm_w_in[comm_of_node_u] += 2 * weight;
             }
-
-        }
+        });
 
         // setup internal loss vectors (summing up all the null model terms per group)
         for (unsigned int i = 0; i < num_nodes; ++i) {
@@ -116,12 +106,9 @@ struct LinearisedInternalsGeneric {
 /**
  @brief  isolate a node into its singleton set & update internals
  */
-template<typename G, typename M, typename P>
-void isolate_and_update_internals (G& graph, M& weights, typename G::Node node,
-                                   LinearisedInternalsGeneric& internals, P& partition)
+template<typename P>
+void isolate_and_update_internals (int node_id, LinearisedInternalsGeneric& internals, P& partition)
 {
-    (void) weights;  // weights are accessed through the CSR cache
-    int node_id = graph.id (node);
     int comm_id = partition.find_set (node_id);
 
     // reset weights
@@ -157,13 +144,10 @@ void isolate_and_update_internals (G& graph, M& weights, typename G::Node node,
 /**
  @brief  insert a node into the best set & update internals
  */
-template<typename G, typename M, typename P>
-void insert_and_update_internals (G& graph, M& weights, typename G::Node node,
-                                  LinearisedInternalsGeneric& internals, P& partition, int best_comm)
+template<typename P>
+void insert_and_update_internals (int node_id, LinearisedInternalsGeneric& internals, P& partition,
+                                  int best_comm)
 {
-    (void) weights;
-    int node_id = graph.id (node);
-
     // update loss
     for (unsigned int j = 0; j < internals.num_null_model_vectors; ++j) {
         internals.comm_loss_vectors[j][best_comm] += internals.null_model_vectors[j][node_id];

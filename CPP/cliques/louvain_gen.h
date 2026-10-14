@@ -111,7 +111,7 @@ P fold_partition_into_orginal_graph_size( std::vector<P>& optimal_partitions, P 
  to be used for a corresponding aggregated graph
 
  @param[in]  new_comm_id_to_old_comm_id -- mapping from new to old community ids
- @param[in]  weights   EdgeMap of edge weights
+ @param[in]  internals -- internals of the current level
  @param[in]  num_null_model_vectors -- number of null model vectors to be aggregated.
  @param[in]  num_nodes_reduced_graph -- number of nodes in the reduced graph
  
@@ -138,8 +138,7 @@ vec2 create_reduced_null_model_vec( const std::vector<int>& new_comm_id_to_old_c
 /**
  @brief  generalise Louvain method - greedy algorithm to find community structure of a network.
 
- @param[in]  graph    --    graph to partition
- @param[in]  weights  --    map of edge weights
+ @param[in]  graph    --    weighted graph to partition
  @param[in]  null_model_vec -- null model vectors
  @param[in]  compute_quality -- functor to compute the quality function
  @param[in]  compute_quality_diff -- functor to compute change in quality function
@@ -150,29 +149,27 @@ vec2 create_reduced_null_model_vec( const std::vector<int>& new_comm_id_to_old_c
  @param[out]  (double) quality of the optimal partition
 
  */
-template<typename P, typename T, typename W, typename QF, typename QFDIFF>
-double find_optimal_partition_louvain_gen( T& graph, W& weights, const vec2& null_model_vec,
+template<typename P, typename QF, typename QFDIFF>
+double find_optimal_partition_louvain_gen( const Graph& graph, const vec2& null_model_vec,
         QF compute_quality, QFDIFF compute_quality_diff, P initial_partition,
         std::vector<P>& optimal_partitions, double minimum_improve,
         std::mt19937& rng )
 {
-
-    typedef typename T::Node Node;
-    typedef typename T::NodeIt NodeIt;
-
     // set up initial partitions
     P partition( initial_partition );
 
     bool do_construct_new_graph = false;
 
-    LinearisedInternalsGeneric internals( graph, weights, partition, null_model_vec );
+    LinearisedInternalsGeneric internals( graph, partition, null_model_vec );
 
     // Build the visit order (initially one slot per node, randomised below).
-    std::vector<Node> nodes_ordered_randomly;
-    nodes_ordered_randomly.reserve( static_cast<std::size_t>( lemon::countNodes( graph ) ) );
+    // Start from the highest node id, the order of LEMON's NodeIt that this
+    // code used before: the shuffle then gives the same order for a seed.
+    std::vector<int> nodes_ordered_randomly;
+    nodes_ordered_randomly.reserve( static_cast<std::size_t>( graph.num_nodes() ) );
 
-    for( NodeIt temp_node( graph ); temp_node != lemon::INVALID; ++temp_node ) {
-        nodes_ordered_randomly.push_back( temp_node );
+    for( int node_id = graph.num_nodes() - 1; node_id >= 0; --node_id ) {
+        nodes_ordered_randomly.push_back( node_id );
     }
 
     // Portable Fisher-Yates: bit-identical across libstdc++/libc++ given the
@@ -192,8 +189,8 @@ double find_optimal_partition_louvain_gen( T& graph, W& weights, const vec2& nul
     std::vector<unsigned char> in_queue( n, 1u );
     std::vector<int> queue;
     queue.reserve( n );
-    for( const Node &node : nodes_ordered_randomly ) {
-        queue.push_back( graph.id( node ) );
+    for( int node_id : nodes_ordered_randomly ) {
+        queue.push_back( node_id );
     }
     std::size_t head = 0;
 
@@ -201,14 +198,13 @@ double find_optimal_partition_louvain_gen( T& graph, W& weights, const vec2& nul
         int node_id = queue[head++];
         in_queue[node_id] = 0u;
 
-        Node n1 = graph.nodeFromId( node_id );
         unsigned int comm_id = partition.find_set( node_id );
 
-        isolate_and_update_internals( graph, weights, n1, internals, partition );
+        isolate_and_update_internals( node_id, internals, partition );
         BestMove move = find_best_comm_move( compute_quality_diff,
                                              static_cast<unsigned int>( node_id ),
                                              internals, comm_id );
-        insert_and_update_internals( graph, weights, n1, internals, partition, move.best_comm );
+        insert_and_update_internals( node_id, internals, partition, move.best_comm );
 
         if( move.best_comm != comm_id ) {
             do_construct_new_graph = true;
@@ -242,19 +238,18 @@ double find_optimal_partition_louvain_gen( T& graph, W& weights, const vec2& nul
         P partition_original_nodes = fold_partition_into_orginal_graph_size( optimal_partitions, partition );
         optimal_partitions.push_back( partition_original_nodes );
 
-        T reduced_graph;
-        W reduced_weights( reduced_graph );
-        create_reduced_graph_from_partition( reduced_graph, reduced_weights, graph, weights, partition,
+        Graph reduced_graph;
+        create_reduced_graph_from_partition( reduced_graph, graph, partition,
                                              new_comm_id_to_old_comm_id, internals );
 
-        unsigned int num_nodes_reduced_graph = lemon::countNodes( reduced_graph );
+        unsigned int num_nodes_reduced_graph = reduced_graph.num_nodes();
         P reduced_partition( num_nodes_reduced_graph );
         reduced_partition.initialise_as_singletons();
         auto reduced_null_model_vec = create_reduced_null_model_vec( new_comm_id_to_old_comm_id, internals,
                                       static_cast<unsigned int>( null_model_vec.size() ),
                                       num_nodes_reduced_graph );
 
-        return find_optimal_partition_louvain_gen( reduced_graph, reduced_weights, reduced_null_model_vec,
+        return find_optimal_partition_louvain_gen( reduced_graph, reduced_null_model_vec,
                 compute_quality, compute_quality_diff, reduced_partition, optimal_partitions, minimum_improve, rng );
     } else {
         if( optimal_partitions.empty() ) {
@@ -274,8 +269,7 @@ double find_optimal_partition_louvain_gen( T& graph, W& weights, const vec2& nul
  In contrast to the generalised variant no null model vectors are provided but they are 
  created directly from the data.
 
- @param[in]  graph    --    graph to partition
- @param[in]  weights  --    map of edge weights
+ @param[in]  graph    --    weighted graph to partition
  @param[in]  compute_quality -- functor to compute the quality function
  @param[in]  compute_quality_diff -- functor to compute change in quality function
  @param[in]  initial_partition -- partition to start from
@@ -285,16 +279,12 @@ double find_optimal_partition_louvain_gen( T& graph, W& weights, const vec2& nul
  @param[out]  (double) quality of the optimal partition
 
  */
-template<typename P, typename T, typename W, typename QF, typename QFDIFF>
-double find_optimal_partition_louvain( T& graph, W& weights,
+template<typename P, typename QF, typename QFDIFF>
+double find_optimal_partition_louvain( const Graph& graph,
         QF compute_quality, QFDIFF compute_quality_diff, P initial_partition,
         std::vector<P>& optimal_partitions, double minimum_improve,
         std::mt19937& rng )
 {
-
-    typedef typename T::Node Node;
-    typedef typename T::NodeIt NodeIt;
-
     P partition( initial_partition );
     P partition_init( initial_partition );
 
@@ -304,13 +294,13 @@ double find_optimal_partition_louvain( T& graph, W& weights,
         partition_init = optimal_partitions.back();
     }
 
-    auto internals = clq::gen_internals( compute_quality, graph, weights, partition, partition_init );
+    auto internals = clq::gen_internals( compute_quality, graph, partition, partition_init );
 
-    std::vector<Node> nodes_ordered_randomly;
-    nodes_ordered_randomly.reserve( static_cast<std::size_t>( lemon::countNodes( graph ) ) );
+    std::vector<int> nodes_ordered_randomly;
+    nodes_ordered_randomly.reserve( static_cast<std::size_t>( graph.num_nodes() ) );
 
-    for( NodeIt temp_node( graph ); temp_node != lemon::INVALID; ++temp_node ) {
-        nodes_ordered_randomly.push_back( temp_node );
+    for( int node_id = graph.num_nodes() - 1; node_id >= 0; --node_id ) {
+        nodes_ordered_randomly.push_back( node_id );
     }
 
     for( std::size_t i = nodes_ordered_randomly.size(); i > 1; --i ) {
@@ -322,8 +312,8 @@ double find_optimal_partition_louvain( T& graph, W& weights,
     std::vector<unsigned char> in_queue( n, 1u );
     std::vector<int> queue;
     queue.reserve( n );
-    for( const Node &node : nodes_ordered_randomly ) {
-        queue.push_back( graph.id( node ) );
+    for( int node_id : nodes_ordered_randomly ) {
+        queue.push_back( node_id );
     }
     std::size_t head = 0;
 
@@ -331,14 +321,13 @@ double find_optimal_partition_louvain( T& graph, W& weights,
         int node_id = queue[head++];
         in_queue[node_id] = 0u;
 
-        Node n1 = graph.nodeFromId( node_id );
         unsigned int comm_id = partition.find_set( node_id );
 
-        isolate_and_update_internals( graph, weights, n1, internals, partition );
+        isolate_and_update_internals( node_id, internals, partition );
         BestMove move = find_best_comm_move( compute_quality_diff,
                                              static_cast<unsigned int>( node_id ),
                                              internals, comm_id );
-        insert_and_update_internals( graph, weights, n1, internals, partition, move.best_comm );
+        insert_and_update_internals( node_id, internals, partition, move.best_comm );
 
         if( move.best_comm != comm_id ) {
             do_construct_new_graph = true;
@@ -366,16 +355,15 @@ double find_optimal_partition_louvain( T& graph, W& weights,
         P partition_original_nodes = fold_partition_into_orginal_graph_size( optimal_partitions, partition );
         optimal_partitions.push_back( partition_original_nodes );
 
-        T reduced_graph;
-        W reduced_weights( reduced_graph );
-        create_reduced_graph_from_partition( reduced_graph, reduced_weights, graph, weights, partition,
+        Graph reduced_graph;
+        create_reduced_graph_from_partition( reduced_graph, graph, partition,
                                              new_comm_id_to_old_comm_id, internals );
 
-        unsigned int num_nodes_reduced_graph = lemon::countNodes( reduced_graph );
+        unsigned int num_nodes_reduced_graph = reduced_graph.num_nodes();
         P reduced_partition( num_nodes_reduced_graph );
         reduced_partition.initialise_as_singletons();
 
-        return find_optimal_partition_louvain( reduced_graph, reduced_weights, compute_quality,
+        return find_optimal_partition_louvain( reduced_graph, compute_quality,
                 compute_quality_diff, reduced_partition, optimal_partitions, minimum_improve, rng );
     } else {
         if( optimal_partitions.empty() ) {
@@ -389,24 +377,24 @@ double find_optimal_partition_louvain( T& graph, W& weights,
 // Backwards-compatible overloads: if no RNG is supplied, fall back to a
 // thread-local std::mt19937 seeded from std::random_device. This preserves
 // the old call signature for existing callers.
-template<typename P, typename T, typename W, typename QF, typename QFDIFF>
-double find_optimal_partition_louvain_gen( T& graph, W& weights, const vec2& null_model_vec,
+template<typename P, typename QF, typename QFDIFF>
+double find_optimal_partition_louvain_gen( const Graph& graph, const vec2& null_model_vec,
         QF compute_quality, QFDIFF compute_quality_diff, P initial_partition,
         std::vector<P>& optimal_partitions, double minimum_improve )
 {
     static thread_local std::mt19937 default_rng{ std::random_device{}() };
-    return find_optimal_partition_louvain_gen( graph, weights, null_model_vec,
+    return find_optimal_partition_louvain_gen( graph, null_model_vec,
             compute_quality, compute_quality_diff, initial_partition,
             optimal_partitions, minimum_improve, default_rng );
 }
 
-template<typename P, typename T, typename W, typename QF, typename QFDIFF>
-double find_optimal_partition_louvain( T& graph, W& weights,
+template<typename P, typename QF, typename QFDIFF>
+double find_optimal_partition_louvain( const Graph& graph,
         QF compute_quality, QFDIFF compute_quality_diff, P initial_partition,
         std::vector<P>& optimal_partitions, double minimum_improve )
 {
     static thread_local std::mt19937 default_rng{ std::random_device{}() };
-    return find_optimal_partition_louvain( graph, weights,
+    return find_optimal_partition_louvain( graph,
             compute_quality, compute_quality_diff, initial_partition,
             optimal_partitions, minimum_improve, default_rng );
 }

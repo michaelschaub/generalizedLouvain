@@ -66,9 +66,15 @@ Please see CODE_HISTORY.txt for more information.
 How to install the stability package
 -----------------------------------------------------------------------------
 
-Prerequisites:
-a) Install Lemon Graph library -- a version is provided in the folder CPP/lemon-lib 
-    for convenience. See https://lemon.cs.elte.hu/trac/lemon for further details
+Prerequisites: a C++ compiler. The code has no other dependencies.
+
+To build the command-line tool and run the tests, do these steps:
+
+    cd CPP/cliques
+    make          # builds run_gen_louvain.sh
+    make test     # builds and runs test/test_louvain
+
+To install the Matlab interface, do these steps:
 
 1. Open Matlab
 

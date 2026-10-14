@@ -27,16 +27,15 @@ struct LinearisedInternalsComb {
     //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
     // simple constructor, no partition given; graph should be the original graph in this case
     //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
-    template<typename G, typename M>
-    LinearisedInternalsComb( G& graph, M& weights ) :
-        num_nodes( lemon::countNodes( graph ) ), num_nodes_init( num_nodes ),
+    explicit LinearisedInternalsComb( const Graph& graph ) :
+        num_nodes( graph.num_nodes() ), num_nodes_init( num_nodes ),
         node_to_nr_nodes_init( num_nodes, 1 ), comm_tot_nodes( num_nodes,
                 1 ), comm_w_in( num_nodes, 0 ),
         node_weight_to_communities( num_nodes, 0 ),
         neighbouring_communities_list(),
-        nbr( build_neighbour_cache( graph, weights ) )
+        nbr( build_neighbour_cache( graph ) )
     {
-        two_m = 2 * find_total_weight( graph, weights );
+        two_m = 2 * find_total_weight( graph );
 
         for( unsigned int i = 0; i < num_nodes; ++i ) {
             comm_w_in[i] = nbr.selfloop_weight[i];
@@ -45,16 +44,16 @@ struct LinearisedInternalsComb {
     //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
     // full constructor with reference to original partition
     //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
-    template<typename G, typename M, typename P>
-    LinearisedInternalsComb( G& graph, M& weights, P& partition, P& partition_init ) :
-        num_nodes( lemon::countNodes( graph ) ),
+    template<typename P>
+    LinearisedInternalsComb( const Graph& graph, P& partition, P& partition_init ) :
+        num_nodes( graph.num_nodes() ),
         node_to_nr_nodes_init( num_nodes, 0 ), comm_tot_nodes( num_nodes, 0 ),
         comm_w_in( num_nodes, 0 ),
         node_weight_to_communities( num_nodes, 0 ),
         neighbouring_communities_list(),
-        nbr( build_neighbour_cache( graph, weights ) )
+        nbr( build_neighbour_cache( graph ) )
     {
-        two_m = 2 * find_total_weight( graph, weights );
+        two_m = 2 * find_total_weight( graph );
         num_nodes_init = partition_init.element_count(); // get original number of nodes
 
         // Get number of nodes incorporated into each supernode;
@@ -66,16 +65,9 @@ struct LinearisedInternalsComb {
             comm_tot_nodes[new_comm_id]++;
         }
 
-        typedef typename G::EdgeIt EdgeIt;
-
-        for( EdgeIt edge( graph ); edge != lemon::INVALID; ++edge ) {
-            int node_u_id = graph.id( graph.u( edge ) );
-            int node_v_id = graph.id( graph.v( edge ) );
-
+        for_each_edge( graph, [&]( int node_u_id, int node_v_id, double weight ) {
             int comm_of_node_u = partition.find_set( node_u_id );
             int comm_of_node_v = partition.find_set( node_v_id );
-
-            double weight = weights[edge];
 
             if( node_u_id == node_v_id ) {
                 weight = weight / 2;
@@ -84,19 +76,16 @@ struct LinearisedInternalsComb {
             if( comm_of_node_u == comm_of_node_v ) {
                 comm_w_in[comm_of_node_u] += 2 * weight;
             }
-        }
+        } );
     }
 };
 
 /**
  @brief  isolate a node into its singleton set & update internals
  */
-template<typename G, typename M, typename P>
-void isolate_and_update_internals( G& graph, M& weights, typename G::Node node,
-                                   LinearisedInternalsComb& internals, P& partition )
+template<typename P>
+void isolate_and_update_internals( int node_id, LinearisedInternalsComb& internals, P& partition )
 {
-    (void) weights;
-    int node_id = graph.id( node );
     int comm_id = partition.find_set( node_id );
 
     while( !internals.neighbouring_communities_list.empty() ) {
@@ -126,12 +115,10 @@ void isolate_and_update_internals( G& graph, M& weights, typename G::Node node,
 /**
  @brief  insert a node into the best set & update internals
  */
-template<typename G, typename M, typename P>
-void insert_and_update_internals( G& graph, M& weights, typename G::Node node,
-                                  LinearisedInternalsComb& internals, P& partition, int best_comm )
+template<typename P>
+void insert_and_update_internals( int node_id, LinearisedInternalsComb& internals, P& partition,
+                                  int best_comm )
 {
-    (void) weights;
-    int node_id = graph.id( node );
     internals.comm_tot_nodes[best_comm] += internals.node_to_nr_nodes_init[node_id];
     internals.comm_w_in[best_comm] += 2 * internals.node_weight_to_communities[best_comm]
                                       + internals.nbr.selfloop_weight[node_id];

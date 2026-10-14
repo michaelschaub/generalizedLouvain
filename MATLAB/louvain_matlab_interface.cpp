@@ -1,5 +1,5 @@
-#include <lemon/smart_graph.h>
 #include <map>
+#include "../CPP/cliques/graph.h"
 #include "../CPP/cliques/louvain_gen.h"
 #include "../CPP/cliques/stability.h"
 #include "../CPP/cliques/stability_gen.h"
@@ -158,12 +158,8 @@ bool parse_arg(int nrhs, const mxArray *prhs[]) {
     return true;
 }
 
-// Template for reading in graph from weighted edgelist data as coming from Matlab
-template<typename G, typename E>
-bool read_edgelist_weighted_from_data(int num_l_dim, G &graph, E &weights) {
-
-    // define Node class for convenience
-    typedef typename G::Node Node;
+// Read in graph from weighted edgelist data as coming from Matlab
+bool read_edgelist_weighted_from_data(int num_l_dim, clq::Graph &graph) {
 
     int max_node_id_seen =-1;
 
@@ -175,20 +171,9 @@ bool read_edgelist_weighted_from_data(int num_l_dim, G &graph, E &weights) {
         int node1_id = data[i];
         int node2_id = data[num_l_dim + i];
 
-        if (node1_id > max_node_id_seen) {
-            int difference = node1_id - max_node_id_seen;
-            for (int i=0; i<difference; ++i) {
-                graph.addNode();
-            }
-            max_node_id_seen = node1_id;
-        }
-
-        if (node2_id > max_node_id_seen) {
-            int difference = node2_id - max_node_id_seen;
-            for (int i=0; i<difference; ++i) {
-                graph.addNode();
-            }
-            max_node_id_seen = node2_id;
+        while (node1_id > max_node_id_seen || node2_id > max_node_id_seen) {
+            graph.add_node();
+            ++max_node_id_seen;
         }
 
         // read in list is two-way yet undirected, but edges should only be created once
@@ -198,9 +183,7 @@ bool read_edgelist_weighted_from_data(int num_l_dim, G &graph, E &weights) {
         }
 
         double weight = data[2 * num_l_dim + i];
-        typename G::Edge edge = graph.addEdge(graph.nodeFromId(node1_id),
-                                              graph.nodeFromId(node2_id));
-        weights.set(edge, weight);
+        graph.add_edge(node1_id, node2_id, weight);
     }
 
     return true;
@@ -218,11 +201,10 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
             plhs[2] = mxCreateDoubleMatrix(0, 0, mxREAL);
         mexErrMsgTxt("Error parsing arguments");
     }
-    //create new graph and weight map
-    lemon::SmartGraph mygraph;
-    lemon::SmartGraph::EdgeMap<double> myweights(mygraph);
+    //create new graph
+    clq::Graph mygraph;
 
-    if (!read_edgelist_weighted_from_data(num_largest_dim, mygraph, myweights)) {
+    if (!read_edgelist_weighted_from_data(num_largest_dim, mygraph)) {
         mexErrMsgTxt("Error creating graph from data");
     }
 
@@ -230,7 +212,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
     typedef clq::VectorPartition partition;
 
     // get number of nodes 
-    unsigned int num_nodes = lemon::countNodes(mygraph);
+    unsigned int num_nodes = mygraph.num_nodes();
 
     // vector of initial partition
     partition singletons(num_nodes);
@@ -262,7 +244,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
                 // now run Louvain method
                 stability[i]
                 = clq::find_optimal_partition_louvain<partition>(
-                      mygraph, myweights, quality,
+                      mygraph, quality,
                       quality_gain, singletons,
                       hierarchical_louvain_partitions, precision);
                 break;
@@ -277,7 +259,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
                 // now run Louvain method
                 stability[i]
                 = clq::find_optimal_partition_louvain<partition>(
-                      mygraph, myweights, quality,
+                      mygraph, quality,
                       quality_gain, singletons,
                       hierarchical_louvain_partitions, precision);
                 break;
@@ -290,7 +272,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
                 // now run Louvain method
                 stability[i]
                 = clq::find_optimal_partition_louvain_gen<partition>(
-                      mygraph, myweights, null_vectors, quality,
+                      mygraph, null_vectors, quality,
                       quality_gain, singletons,
                       hierarchical_louvain_partitions, precision);
                 break;

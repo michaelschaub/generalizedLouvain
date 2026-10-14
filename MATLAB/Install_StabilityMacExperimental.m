@@ -23,7 +23,7 @@ disp('Compiling files...');
 
 % compilation mac experimental (not using matlab)
 !/usr/local/bin/g++-5 -c -DMX_COMPAT_32   -DMATLAB_MEX_FILE  -I./  -I"/Applications/MATLAB_R2015a.app/extern/include" -I"/Applications/MATLAB_R2015a.app/simulink/include" -std=gnu++0x -fPIC -O2 -DNDEBUG matlab/louvain_matlab_interface.cpp -o louvain_matlab_interface.o
-!/usr/local/bin/g++-5 -L/usr/local/include/lemon -Wl,-twolevel_namespace -undefined error -arch x86_64 -mmacosx-version-min=10.9 -Wl,-syslibroot,/usr/local/include -Wl,-syslibroot,/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk -framework Cocoa -bundle  -Wl,-exported_symbols_list,"/Applications/MATLAB_R2015a.app/extern/lib/maci64/mexFunction.map" -O -Wl,-exported_symbols_list,"/Applications/MATLAB_R2015a.app/extern/lib/maci64/mexFunction.map" louvain_matlab_interface.o   -lemon   -L"/Applications/MATLAB_R2015a.app/bin/maci64" -lmx -lmex -lmat -o stability_louvain.mexmaci64
+!/usr/local/bin/g++-5 -Wl,-twolevel_namespace -undefined error -arch x86_64 -mmacosx-version-min=10.9 -Wl,-syslibroot,/usr/local/include -Wl,-syslibroot,/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk -framework Cocoa -bundle  -Wl,-exported_symbols_list,"/Applications/MATLAB_R2015a.app/extern/lib/maci64/mexFunction.map" -O -Wl,-exported_symbols_list,"/Applications/MATLAB_R2015a.app/extern/lib/maci64/mexFunction.map" louvain_matlab_interface.o   -L"/Applications/MATLAB_R2015a.app/bin/maci64" -lmx -lmex -lmat -o stability_louvain.mexmaci64
 
 disp('Moving build files to bin directory...');
 

@@ -4,11 +4,12 @@
 #include <string>
 #include <fstream>
 #include <set>
-#include <lemon/core.h>
+#include <sstream>
 #include <vector>
 #include <map>
 #include <algorithm>
 #include <cmath>
+#include "graph.h"
 
 namespace clq {
 //Variadic template for generic output ala printf();
@@ -182,9 +183,9 @@ std::vector<double> read_edgelist_weighted(std::string filename) {
     return Adj;
 }
 
-//TODO WRITE DESCRIPTION
-template<typename G, typename E>
-bool read_edgelist_weighted_graph(std::string filename, G &graph, E &weights) {
+// Read a weighted edge list ("node1 node2 weight" on each line) into graph.
+// The node ids start at 0. The graph gets max node id + 1 nodes.
+inline bool read_edgelist_weighted_graph(std::string filename, Graph &graph) {
     // initialise input stream and strings for readout
     std::ifstream my_file(filename.c_str());
     std::string line;
@@ -195,9 +196,6 @@ bool read_edgelist_weighted_graph(std::string filename, G &graph, E &weights) {
         std::cout << "couldn't open file:" << filename << std::endl;
         exit(1);
     }
-
-    // define Node class for convenience
-    typedef typename G::Node Node;
 
     // keep track of graph size
     // NB: numbering starts with 0!
@@ -215,29 +213,12 @@ bool read_edgelist_weighted_graph(std::string filename, G &graph, E &weights) {
         std::getline(lineStream, mystring, ' ');
         double weight = atof(mystring.c_str());
 
-        //std::cout << "Read Line: " << node1_id << " " << node2_id << " " << weight << " " << std::endl;
-        if (node1_id > max_node_id_seen) {
-            int difference = node1_id - max_node_id_seen;
-            for (int i=0; i<difference; ++i) {
-                graph.addNode();
-            }
-            max_node_id_seen = node1_id;
+        while (node1_id > max_node_id_seen || node2_id > max_node_id_seen) {
+            graph.add_node();
+            ++max_node_id_seen;
         }
 
-        if (node2_id > max_node_id_seen) {
-            int difference = node2_id - max_node_id_seen;
-            for (int i=0; i<difference; ++i) {
-                graph.addNode();
-            }
-            max_node_id_seen = node2_id;
-        }
-
-        //std::cout << max_node_id_seen << std::endl;
-        Node node1 = graph.nodeFromId(node1_id);
-        Node node2 = graph.nodeFromId(node2_id);
-
-        typename G::Edge edge = graph.addEdge(node1, node2);
-        weights.set(edge, weight);
+        graph.add_edge(node1_id, node2_id, weight);
     }
 
     my_file.close();
@@ -319,12 +300,10 @@ void write_adj_matrix(std::string filename, std::vector<double> matrix) {
 
 }
 
-//TODO WRITE DESCRIPTION
-template<typename G, typename E>
-void write_edgelist_weighted_graph(std::string filename, G &graph, E &weights) {
+// Write graph as a weighted edge list, in the order of for_each_edge.
+inline void write_edgelist_weighted_graph(std::string filename, const Graph &graph) {
     // initialise input stream and strings for readout
     std::ofstream my_file(filename.c_str());
-    std::string mystring;
 
     // check if file is open
     if (!my_file.is_open()) {
@@ -332,13 +311,9 @@ void write_edgelist_weighted_graph(std::string filename, G &graph, E &weights) {
         exit(1);
     }
 
-    for(typename G::EdgeIt e(graph); e!=lemon::INVALID; ++e) {
-        int node1 = graph.id(graph.u(e));
-        int node2 = graph.id(graph.v(e));
-        double weight = weights[e];
-
+    for_each_edge(graph, [&](int node1, int node2, double weight) {
         my_file << node1 << " " << node2 << " " << weight << "\n";
-    }
+    });
 
     my_file.close();
 }

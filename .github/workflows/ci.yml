@@ -1,0 +1,28 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Tests (${{ matrix.os }}, ${{ matrix.std }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        # C++11 is the standard that PyGenStability uses to compile these headers.
+        std: [c++17, c++11]
+    defaults:
+      run:
+        working-directory: CPP/cliques
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Build the command-line tool
+        run: make CXX=c++ CXXFLAGS="-O3 -DNDEBUG -ffp-contract=off -std=${{ matrix.std }} -Wall"
+
+      - name: Run the tests
+        run: make test CXX=c++ CXXFLAGS="-O3 -DNDEBUG -ffp-contract=off -std=${{ matrix.std }} -Wall"

@@ -19,46 +19,37 @@ struct LinearisedInternals {
     // CSR neighbour cache + per-node self-loop weight (see graphhelpers.h).
     NeighbourCache nbr;
 
-    template<typename G, typename M>
-    LinearisedInternals( G& graph, M& weights ) :
-        num_nodes( lemon::countNodes( graph ) ), node_to_w( num_nodes, 0 ),
+    explicit LinearisedInternals( const Graph& graph ) :
+        num_nodes( graph.num_nodes() ), node_to_w( num_nodes, 0 ),
         comm_w_tot( num_nodes, 0 ), comm_w_in( num_nodes, 0 ),
         node_weight_to_communities( num_nodes, 0 ),
         neighbouring_communities_list(),
-        nbr( build_neighbour_cache( graph, weights ) )
+        nbr( build_neighbour_cache( graph ) )
     {
-        two_m = 2 * find_total_weight( graph, weights );
+        two_m = 2 * find_total_weight( graph );
 
+        std::vector<double> degree = find_weighted_degrees( graph );
         for( unsigned int i = 0; i < num_nodes; ++i ) {
-            typename G::Node temp_node = graph.nodeFromId( i );
-            comm_w_tot[i] = node_to_w[i] = find_weighted_degree( graph, weights,
-                                           temp_node );
+            comm_w_tot[i] = node_to_w[i] = degree[i];
             comm_w_in[i] = nbr.selfloop_weight[i];
         }
     }
 
-    template<typename G, typename M, typename P>
-    LinearisedInternals( G& graph, M& weights, P& partition ) :
-        num_nodes( lemon::countNodes( graph ) ), node_to_w( num_nodes, 0 ),
+    template<typename P>
+    LinearisedInternals( const Graph& graph, P& partition ) :
+        num_nodes( graph.num_nodes() ), node_to_w( num_nodes, 0 ),
         comm_w_tot( num_nodes, 0 ), comm_w_in( num_nodes, 0 ),
         node_weight_to_communities( num_nodes, 0 ),
         neighbouring_communities_list(),
-        nbr( build_neighbour_cache( graph, weights ) )
+        nbr( build_neighbour_cache( graph ) )
     {
-        two_m = 2 * find_total_weight( graph, weights );
-
-        typedef typename G::EdgeIt EdgeIt;
+        two_m = 2 * find_total_weight( graph );
 
         // find internal statistics based on graph, weights and partitions
         // consider all edges
-        for( EdgeIt edge( graph ); edge != lemon::INVALID; ++edge ) {
-            int node_u_id = graph.id( graph.u( edge ) );
-            int node_v_id = graph.id( graph.v( edge ) );
-
+        for_each_edge( graph, [&]( int node_u_id, int node_v_id, double weight ) {
             int comm_of_node_u = partition.find_set( node_u_id );
             int comm_of_node_v = partition.find_set( node_v_id );
-
-            double weight = weights[edge];
 
             if( node_u_id == node_v_id ) {
                 weight = weight / 2;
@@ -72,19 +63,16 @@ struct LinearisedInternals {
             if( comm_of_node_u == comm_of_node_v ) {
                 comm_w_in[comm_of_node_u] += 2 * weight;
             }
-        }
+        } );
     }
 };
 
 /**
  @brief  isolate a node into its singleton set & update internals
  */
-template<typename G, typename M, typename P>
-void isolate_and_update_internals( G& graph, M& weights,
-                                   typename G::Node node, LinearisedInternals& internals, P& partition )
+template<typename P>
+void isolate_and_update_internals( int node_id, LinearisedInternals& internals, P& partition )
 {
-    (void) weights;
-    int node_id = graph.id( node );
     int comm_id = partition.find_set( node_id );
 
     // reset weights
@@ -117,12 +105,10 @@ void isolate_and_update_internals( G& graph, M& weights,
 /**
  @brief  insert a node into the best set & update internals
  */
-template<typename G, typename M, typename P>
-void insert_and_update_internals( G& graph, M& weights, typename G::Node node,
-                                  LinearisedInternals& internals, P& partition, int best_comm )
+template<typename P>
+void insert_and_update_internals( int node_id, LinearisedInternals& internals, P& partition,
+                                  int best_comm )
 {
-    (void) weights;
-    int node_id = graph.id( node );
     internals.comm_w_tot[best_comm] += internals.node_to_w[node_id];
     internals.comm_w_in[best_comm] += 2
                                       * internals.node_weight_to_communities[best_comm]
