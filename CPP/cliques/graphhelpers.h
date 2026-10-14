@@ -163,7 +163,17 @@ void create_reduced_graph_from_partition(G &reduced_graph,
 		pair_to_weight[key] += weights[edge];
 	}
 
-	for (const auto &kv : pair_to_weight) {
+	// Insert edges in a canonical (sorted) order: unordered_map iteration order
+	// is implementation-defined (libstdc++ vs libc++), and the edge order sets
+	// the neighbour order at the next level, which breaks ties between equal
+	// gains. Sorting keeps results for a given seed identical across platforms.
+	std::vector<std::pair<std::uint64_t, double>> sorted_pairs(pair_to_weight.begin(),
+			pair_to_weight.end());
+	std::sort(sorted_pairs.begin(), sorted_pairs.end(),
+			[](const std::pair<std::uint64_t, double> &a,
+			   const std::pair<std::uint64_t, double> &b) { return a.first < b.first; });
+
+	for (const auto &kv : sorted_pairs) {
 		std::uint32_t lo = static_cast<std::uint32_t>(kv.first & 0xffffffffull);
 		std::uint32_t hi = static_cast<std::uint32_t>(kv.first >> 32);
 		Node nu = reduced_graph.nodeFromId(static_cast<int>(lo));
